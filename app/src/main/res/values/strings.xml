@@ -1,3 +1,75 @@
 <resources>
     <string name="app_name">Pixel IMS</string>
+
+    <!-- SIM selector -->
+    <string name="sim_slot">SIM %1$d</string>
+
+    <!-- Status card -->
+    <string name="status_card_title">Status</string>
+    <string name="status_card_desc">What the system currently applies for this SIM</string>
+    <string name="status_ims_label">IMS registration</string>
+    <string name="status_on">On</string>
+    <string name="status_off">Off</string>
+    <string name="feat_volte_short">VoLTE</string>
+    <string name="feat_vonr_short">VoNR</string>
+    <string name="feat_vowifi_short">VoWiFi</string>
+    <string name="feat_wfc_roaming_short">Wi-Fi calling roaming</string>
+    <string name="feat_ss_ut_short">Supplementary services (UT)</string>
+
+    <!-- IMS settings card -->
+    <string name="ims_settings_title">IMS settings</string>
+    <string name="toggle_volte_title">VoLTE calling</string>
+    <string name="toggle_volte_desc">Allow voice calls over the 4G/LTE network</string>
+    <string name="toggle_vonr_title">5G calling (VoNR)</string>
+    <string name="toggle_vonr_desc">Enable Voice over New Radio on 5G standalone</string>
+    <string name="toggle_vowifi_title">Wi-Fi calling (VoWiFi)</string>
+    <string name="toggle_vowifi_desc">Allow calls over Wi-Fi when the signal is weak</string>
+    <string name="toggle_wfc_roaming_title">Wi-Fi calling while roaming</string>
+    <string name="toggle_wfc_roaming_desc">Keep Wi-Fi calling enabled while roaming abroad</string>
+    <string name="toggle_ss_ut_title">Supplementary services (UT)</string>
+    <string name="toggle_ss_ut_desc">Carrier call forwarding, call waiting and similar settings</string>
+
+    <!-- Setup / onboarding (shown until paired) -->
+    <string name="setup_title">Set up wireless debugging</string>
+    <string name="setup_intro">IMS controls unlock once the phone is paired over wireless debugging.</string>
+    <string name="setup_pairing_hint">After enabling it, open the notification shade and enter the 6-digit code from the pairing dialog.</string>
+    <string name="step1_title">Step 1. Connect to Wi-Fi (required)</string>
+    <string name="step1_desc">Wireless debugging requires the phone to be connected to a Wi-Fi network</string>
+    <string name="step2_title">Step 2. Enable the service and pair</string>
+    <string name="step2_state_unpaired">Service enabled (pairing required)</string>
+    <string name="step2_state_off">Enable wireless debugging in system settings</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="badge_unpaired">Not paired</string>
+    <string name="badge_not_connected">Not connected</string>
+    <string name="enable_wireless_debugging">Open wireless debugging</string>
+
+    <!-- Apply actions -->
+    <string name="apply_on_boot_title">Apply on boot</string>
+    <string name="apply_on_boot_desc">Automatically write these settings to this SIM after a reboot</string>
+    <string name="apply_desc">Write the settings above to SIM %1$d, or restore the carrier defaults.</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_restore">Restore</string>
+
+    <!-- Messages -->
+    <string name="msg_enable_wireless_first">Enable wireless debugging first</string>
+    <string name="msg_apply_failed">Apply failed: %1$s</string>
+    <string name="msg_restore_failed">Restore failed: %1$s</string>
+    <string name="msg_pairing_no_port">Pairing port not detected. Make sure the system pairing dialog is open.</string>
+    <string name="msg_pairing_in_progress">Pairing the device in the background…</string>
+    <string name="msg_pairing_success">Paired successfully!</string>
+    <string name="msg_pairing_failed">Pairing failed: %1$s</string>
+    <string name="msg_notification_permission_needed">Notification permission is required to enter the pairing code from the notification shade</string>
+    <string name="msg_developer_options_not_found">Developer options not found</string>
+
+    <!-- Pairing notification -->
+    <string name="notif_channel_pairing_name">Wireless debugging pairing</string>
+    <string name="notif_channel_pairing_desc">Quickly enter the wireless debugging pairing code from the notification shade</string>
+    <string name="notif_pairing_title">Wireless debugging pairing</string>
+    <string name="notif_pairing_text">Tap "Enter pairing code" below and enter the 6-digit code</string>
+    <string name="notif_pairing_reply_label">Enter the 6-digit pairing code</string>
+    <string name="notif_pairing_action">Enter pairing code</string>
+    <string name="notif_pairing_status">Pairing on port %1$d…</string>
+    <string name="notif_pairing_status_failed">Pairing failed: %1$s</string>
+    <string name="notif_pairing_status_no_port">Pairing failed: system pairing port not detected</string>
 </resources>
