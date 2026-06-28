@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val keystorePath = findProperty("PIXELIMS_STORE_FILE") as String?
+
 android {
     namespace = "com.takaisaisei.pixelims"
     compileSdk {
@@ -14,11 +16,22 @@ android {
         minSdk = 34
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = keystorePath?.let { file(it) }
+            storePassword = findProperty("PIXELIMS_STORE_PASSWORD") as String?
+            keyAlias = findProperty("PIXELIMS_KEY_ALIAS") as String?
+            keyPassword = findProperty("PIXELIMS_KEY_PASSWORD") as String?
+        }
     }
 
     buildTypes {
         release {
+            signingConfig =
+                if (keystorePath != null) signingConfigs.getByName("release") else null
             optimization {
                 enable = false
             }
