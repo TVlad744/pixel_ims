@@ -15,8 +15,8 @@ android {
         applicationId = "com.takaisaisei.pixelims"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0-beta1"
 
         // Force the Android 12/13 detached apply path.
         val forceDetached = (System.getenv("FORCE_DETACHED")
