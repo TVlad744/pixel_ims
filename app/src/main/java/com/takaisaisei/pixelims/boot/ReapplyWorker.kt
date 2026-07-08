@@ -4,10 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.takaisaisei.pixelims.ApplyMode
 import com.takaisaisei.pixelims.adb.AdbController
 import com.takaisaisei.pixelims.adb.AdbDiscovery
 import com.takaisaisei.pixelims.adb.AdbEndpoint
 import com.takaisaisei.pixelims.data.SettingsRepository
+import com.takaisaisei.pixelims.domain.BrokerContract
 import com.takaisaisei.pixelims.system.ConnectivityMonitor
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -18,8 +20,16 @@ class ReapplyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
     override suspend fun doWork(): Result {
         val settings = SettingsRepository(applicationContext)
-        val slots = settings.bootSlots()
-        if (slots.isEmpty()) return Result.success()
+        if (settings.bootSlots().isEmpty()) return Result.success()
+
+        // On Android < 14 apply is detached: `am instrument` force-stops this very worker after
+        // dispatch, which WorkManager treats as a failure and reschedules. Skip if we already fired
+        // during this boot to avoid a loop.
+        val detached = ApplyMode.detached
+        if (detached && settings.bootApplyAlreadyFired()) {
+            Log.d(TAG, "Boot re-apply already dispatched this boot; skipping")
+            return Result.success()
+        }
 
         // Wireless Debugging only lives on Wi-Fi/LAN. The CONNECTED constraint also passes on cellular,
         // so bail cheaply (and let WorkManager retry) until we're actually on Wi-Fi - no point waiting
@@ -44,14 +54,19 @@ class ReapplyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             return Result.retry()
         }
 
-        var allOk = true
-        for (slot in slots.sorted()) {
-            adb.runApply(port, slot, clear = false).onFailure {
-                Log.e(TAG, "Reapply failed for slot $slot", it)
-                allOk = false
-            }
+        if (detached) {
+            // Mark before firing: the force-stop may kill us before we can return.
+            settings.markBootApplyFired()
+            adb.runApply(port, BrokerContract.SLOT_ALL_BOOT, clear = false, notify = true)
+            return Result.success()
         }
-        return if (allOk) Result.success() else Result.retry()
+        return adb.runApply(port, BrokerContract.SLOT_ALL_BOOT, clear = false, notify = true).fold(
+            onSuccess = { Result.success() },
+            onFailure = {
+                Log.e(TAG, "Boot re-apply failed", it)
+                Result.retry()
+            },
+        )
     }
 
     companion object {

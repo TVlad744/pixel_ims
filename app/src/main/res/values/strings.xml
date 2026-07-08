@@ -72,4 +72,16 @@
     <string name="notif_pairing_status">Pairing on port %1$d…</string>
     <string name="notif_pairing_status_failed">Pairing failed: %1$s</string>
     <string name="notif_pairing_status_no_port">Pairing failed: system pairing port not detected</string>
+
+    <!-- Apply status notification -->
+    <string name="notif_channel_applying_name">Applying IMS settings</string>
+    <string name="notif_channel_applying_desc">Shown while IMS settings are being applied</string>
+    <string name="notif_channel_status_name">IMS settings result</string>
+    <string name="notif_channel_status_desc">Result of applying or restoring IMS settings</string>
+    <string name="notif_applying_title">Applying IMS settings…</string>
+    <string name="notif_applying_text">Please wait, this may take up to a minute</string>
+    <string name="notif_apply_done_title">IMS settings applied</string>
+    <string name="notif_restore_done_title">Carrier defaults restored</string>
+    <string name="notif_apply_ims_registered">SIM %1$d: IMS registered</string>
+    <string name="notif_apply_ims_unregistered">SIM %1$d: IMS not registered</string>
 </resources>

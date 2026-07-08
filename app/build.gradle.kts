@@ -13,10 +13,15 @@ android {
 
     defaultConfig {
         applicationId = "com.takaisaisei.pixelims"
-        minSdk = 34
+        minSdk = 31
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+
+        // Force the Android 12/13 detached apply path.
+        val forceDetached = (System.getenv("FORCE_DETACHED")
+            ?: findProperty("FORCE_DETACHED") as String?)?.toBoolean() ?: false
+        buildConfigField("boolean", "FORCE_DETACHED", forceDetached.toString())
     }
 
     signingConfigs {
@@ -43,6 +48,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

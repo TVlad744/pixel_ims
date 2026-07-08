@@ -1,5 +1,6 @@
 package com.takaisaisei.pixelims.domain
 
+import com.takaisaisei.pixelims.domain.BrokerContract.SLOT_ALL_BOOT
 import java.util.EnumMap
 
 /**
@@ -21,8 +22,13 @@ object BrokerContract {
     /** `am instrument -e <key> <value>` argument: whether to clear overrides instead of applying. */
     const val ARG_CLEAR = "clear"
 
-    /** `am instrument -e <key> <value>` argument: the single SIM slot to act on. */
+    /**
+     * `am instrument -e <key> <value>` argument: the SIM slot to act on, or [SLOT_ALL_BOOT] to act
+     * on every slot the user opted into "apply on boot".
+     */
     const val ARG_SLOT = "slot"
+    const val ARG_NOTIFY = "notify"
+    const val SLOT_ALL_BOOT = -1
 
     private const val IMS_PREFIX = "IMS:"
     private const val FEATURE_PREFIX = "FEAT:"

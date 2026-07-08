@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun ensureNotificationPermissionAtStartup() {
-        if (!hasNotificationPermission()) {
+        if (needsNotificationPermissionRequest() && !hasNotificationPermission()) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -110,6 +110,9 @@ class MainActivity : ComponentActivity() {
         }
         openWirelessDebuggingSettings()
     }
+
+    private fun needsNotificationPermissionRequest(): Boolean =
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU
 
     private fun openWirelessDebuggingSettings() {
         val highlightArgs = Bundle().apply {
@@ -125,7 +128,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun hasNotificationPermission(): Boolean =
-        ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+        !needsNotificationPermissionRequest() ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
                 PackageManager.PERMISSION_GRANTED
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()

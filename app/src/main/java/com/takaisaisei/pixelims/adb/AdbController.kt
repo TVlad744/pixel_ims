@@ -3,6 +3,7 @@ package com.takaisaisei.pixelims.adb
 import android.content.Context
 import android.util.Log
 import com.flyfishxu.kadb.Kadb
+import com.takaisaisei.pixelims.ApplyMode
 import com.takaisaisei.pixelims.domain.BrokerContract
 import com.takaisaisei.pixelims.domain.SlotQuery
 import kotlinx.coroutines.Dispatchers
@@ -28,12 +29,28 @@ class AdbController(context: Context) {
     }
 
     /**
-     * Runs [com.takaisaisei.pixelims.BrokerInstrumentation] synchronously and waits for it to finish.
+     * Runs [com.takaisaisei.pixelims.BrokerInstrumentation] for [slot] (or every apply-on-boot slot
+     * when [slot] is [BrokerContract.SLOT_ALL_BOOT]).
      *
-     * `--no-restart` attaches instrumentation to the already-running app process.
-     * With the process kept alive we can run attached (no `nohup &`).
+     * The mechanism differs by platform version:
+     * - **Android 14+**: `--no-restart` attaches to the already-running app process, so the run is
+     *   synchronous, the UI survives and the result is returned directly.
+     * - **Android < 14**: `--no-restart` does not exist and `am instrument` kills the
+     *   app process, so the command is fired detached.
      */
-    suspend fun runApply(port: Int, slot: Int, clear: Boolean): Result<Unit> =
+    suspend fun runApply(port: Int, slot: Int, clear: Boolean, notify: Boolean): Result<Unit> =
+        if (ApplyMode.detached) {
+            runApplyDetached(port, slot, clear)
+        } else {
+            runApplyAttached(port, slot, clear, notify)
+        }
+
+    private suspend fun runApplyAttached(
+        port: Int,
+        slot: Int,
+        clear: Boolean,
+        notify: Boolean,
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
                 Kadb.create(HOST, port, CONNECT_TIMEOUT_MS, APPLY_TIMEOUT_MS).use { kadb ->
@@ -41,11 +58,28 @@ class AdbController(context: Context) {
                     val command = "am instrument -w --no-restart" +
                             " -e ${BrokerContract.ARG_CLEAR} $clear" +
                             " -e ${BrokerContract.ARG_SLOT} $slot" +
+                            " -e ${BrokerContract.ARG_NOTIFY} $notify" +
                             " $target"
                     val response = kadb.shell(command)
                     check(response.exitCode == 0) { "Exit code ${response.exitCode}: ${response.output}" }
                     // `am instrument` exits 0 even when the run reports a failure; surface that too.
                     check(!response.output.contains("INSTRUMENTATION_FAILED")) { response.output.trim() }
+                }
+            }
+        }
+
+    private suspend fun runApplyDetached(port: Int, slot: Int, clear: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                Kadb.create(HOST, port, CONNECT_TIMEOUT_MS, CONNECT_TIMEOUT_MS).use { kadb ->
+                    val target = "$packageName/$packageName.BrokerInstrumentation"
+                    val command = "nohup am instrument -w" +
+                            " -e ${BrokerContract.ARG_CLEAR} $clear" +
+                            " -e ${BrokerContract.ARG_SLOT} $slot" +
+                            " -e ${BrokerContract.ARG_NOTIFY} true" +
+                            " $target > /dev/null 2>&1 &"
+                    val response = kadb.shell(command)
+                    check(response.exitCode == 0) { "Exit code ${response.exitCode}: ${response.output}" }
                 }
             }
         }

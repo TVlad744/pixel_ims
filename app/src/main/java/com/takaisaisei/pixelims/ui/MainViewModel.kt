@@ -3,6 +3,7 @@ package com.takaisaisei.pixelims.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.takaisaisei.pixelims.ApplyMode
 import com.takaisaisei.pixelims.R
 import com.takaisaisei.pixelims.adb.AdbController
 import com.takaisaisei.pixelims.adb.AdbDiscovery
@@ -120,7 +121,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(isApplying = true, statuses = it.statuses + (slot to SlotStatus()))
         }
         viewModelScope.launch {
-            val result = adb.runApply(port, slot, clear)
+            if (ApplyMode.detached) {
+                notifications.showApplying()
+            }
+            val result = adb.runApply(port, slot, clear, notify = false)
             _uiState.update { it.copy(isApplying = false) }
             result.onFailure { error -> emit(UiMessage(failureMessage, error.message)) }
         }

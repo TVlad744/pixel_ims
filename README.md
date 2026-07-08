@@ -20,13 +20,13 @@ There is no public API to change carrier config, so the app borrows shell privil
 
 1. It connects to the phone's **own Wireless Debugging** endpoint over loopback ADB (via
    [kadb](https://github.com/FlyfishXu/kadb)) — the port is discovered automatically with mDNS.
-2. It launches a small `Instrumentation` (`am instrument --no-restart`) that adopts the shell
+2. It launches a small `Instrumentation` that adopts the shell
    permission identity and calls `CarrierConfigManager.overrideConfig` for the selected SIM.
 3. Status is read back with the same shell privileges via a lightweight `app_process` tool.
 
 ## Requirements
 
-- A Tensor Pixel device on **Android 14+** (`minSdk 34`).
+- A Tensor Pixel device on **Android 12+** (`minSdk 31`).
 
 ## Usage
 
