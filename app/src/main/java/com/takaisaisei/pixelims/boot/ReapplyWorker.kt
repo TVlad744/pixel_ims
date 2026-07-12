@@ -11,6 +11,7 @@ import com.takaisaisei.pixelims.adb.AdbEndpoint
 import com.takaisaisei.pixelims.data.SettingsRepository
 import com.takaisaisei.pixelims.domain.BrokerContract
 import com.takaisaisei.pixelims.system.ConnectivityMonitor
+import com.takaisaisei.pixelims.system.WirelessDebugging
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -42,8 +43,14 @@ class ReapplyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val discovery = AdbDiscovery(applicationContext)
         val adb = AdbController(applicationContext)
 
-        val port = withTimeoutOrNull(DISCOVERY_WINDOW_MS.milliseconds) {
-            discovery.discover().filterIsInstance<AdbEndpoint.Connect>().first().port
+        var port = discoverPort(discovery)
+        if (port == null) {
+            // No connect port published. On some devices adbd stays stopped after boot despite
+            // wireless debugging being enabled; recover it and retry.
+            if (WirelessDebugging.recover(applicationContext)) {
+                Log.d(TAG, "Recovered wireless debugging; re-discovering")
+                port = discoverPort(discovery)
+            }
         }
         if (port == null) {
             Log.d(TAG, "No connect endpoint within window; will retry")
@@ -69,9 +76,14 @@ class ReapplyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         )
     }
 
+    private suspend fun discoverPort(discovery: AdbDiscovery): Int? =
+        withTimeoutOrNull(DISCOVERY_WINDOW_MS.milliseconds) {
+            discovery.discover().filterIsInstance<AdbEndpoint.Connect>().first().port
+        }
+
     companion object {
         const val WORK_NAME = "reapply_on_boot"
         private const val TAG = "ReapplyWorker"
-        private const val DISCOVERY_WINDOW_MS = 60_000L
+        private const val DISCOVERY_WINDOW_MS = 15_000L
     }
 }

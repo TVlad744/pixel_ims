@@ -1,7 +1,10 @@
 package com.takaisaisei.pixelims.adb
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.flyfishxu.kadb.Kadb
 import com.takaisaisei.pixelims.ApplyMode
 import com.takaisaisei.pixelims.domain.BrokerContract
@@ -17,8 +20,9 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 class AdbController(context: Context) {
 
-    private val packageName: String = context.applicationContext.packageName
-    private val pairingKeyDir: String = context.applicationContext.filesDir.absolutePath
+    private val appContext: Context = context.applicationContext
+    private val packageName: String = appContext.packageName
+    private val pairingKeyDir: String = appContext.filesDir.absolutePath
 
     suspend fun isAuthorized(port: Int): Boolean = withContext(Dispatchers.IO) {
         runCatching {
@@ -88,6 +92,32 @@ class AdbController(context: Context) {
     suspend fun pair(port: Int, code: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching { Kadb.pair(HOST, port, code, pairingKeyDir) }
     }
+
+    /**
+     * Self-grants [Manifest.permission.WRITE_SECURE_SETTINGS] over the working ADB bridge, if not
+     * already held.
+     */
+    suspend fun grantWriteSecureSettingsIfNeeded(port: Int) {
+        if (hasWriteSecureSettings()) return
+        withContext(Dispatchers.IO) {
+            runCatching {
+                Kadb.create(HOST, port, AUTH_TIMEOUT_MS, AUTH_TIMEOUT_MS).use { kadb ->
+                    val response =
+                        kadb.shell("pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}")
+                    if (response.exitCode != 0) {
+                        Log.w(
+                            TAG,
+                            "pm grant WRITE_SECURE_SETTINGS failed: ${response.output.trim()}"
+                        )
+                    }
+                }
+            }.onFailure { Log.w(TAG, "Failed to self-grant WRITE_SECURE_SETTINGS", it) }
+        }
+    }
+
+    private fun hasWriteSecureSettings(): Boolean =
+        ContextCompat.checkSelfPermission(appContext, Manifest.permission.WRITE_SECURE_SETTINGS) ==
+                PackageManager.PERMISSION_GRANTED
 
     /**
      * Continuously runs the lightweight `ImsQueryTool` over ADB and reports each slot's state

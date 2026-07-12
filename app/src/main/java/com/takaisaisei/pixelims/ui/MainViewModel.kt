@@ -160,6 +160,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         authJob = viewModelScope.launch {
             val authorized = adb.isAuthorized(port)
             _uiState.update { it.copy(isAuthorized = authorized) }
+            if (authorized) adb.grantWriteSecureSettingsIfNeeded(port)
         }
         pollJob = viewModelScope.launch {
             adb.pollImsStatus(
