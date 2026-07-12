@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
 import androidx.core.content.edit
+import com.takaisaisei.pixelims.domain.CfgValue
 import com.takaisaisei.pixelims.domain.Feature
+import com.takaisaisei.pixelims.domain.Override
 import com.takaisaisei.pixelims.domain.SlotConfig
 
 /**
@@ -20,16 +22,30 @@ class SettingsRepository(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun readConfig(slot: Int): SlotConfig = SlotConfig(
-        Feature.entries.associateWith { prefs.getBoolean(flagKey(it, slot), it.default) },
+        enabled = Feature.entries.associateWith { prefs.getBoolean(flagKey(it, slot), it.default) },
+        values = buildMap {
+            editableOverrides().forEach { (override, default) ->
+                put(override.key, default.reload(prefs, valueKey(override.key, slot)))
+            }
+        },
     )
 
     fun setFlag(slot: Int, feature: Feature, value: Boolean) {
         prefs.edit(commit = true) { putBoolean(flagKey(feature, slot), value) }
     }
 
+    fun setValue(slot: Int, key: String, value: CfgValue) {
+        prefs.edit(commit = true) { value.saveInto(this, valueKey(key, slot)) }
+    }
+
     fun resetToDefaults(slot: Int) {
         prefs.edit(commit = true) {
-            Feature.entries.forEach { putBoolean(flagKey(it, slot), it.default) }
+            Feature.entries.forEach { feature ->
+                putBoolean(flagKey(feature, slot), feature.default)
+            }
+            editableOverrides().forEach { (override, default) ->
+                default.saveInto(this, valueKey(override.key, slot))
+            }
             putStringSet(KEY_BOOT_SLOTS, encodeSlots(bootSlots() - slot))
         }
     }
@@ -60,7 +76,13 @@ class SettingsRepository(context: Context) {
         return firedAt in 0..SystemClock.elapsedRealtime()
     }
 
+    private fun editableOverrides(): List<Pair<Override, CfgValue>> =
+        Feature.entries.flatMap { it.overrides }
+            .mapNotNull { override -> override.editableDefault?.let { override to it } }
+
     private fun flagKey(feature: Feature, slot: Int) = "${feature.key}_slot_$slot"
+
+    private fun valueKey(key: String, slot: Int) = "${key}_slot_$slot"
 
     private fun encodeSlots(slots: Set<Int>): Set<String> = slots.map(Int::toString).toSet()
 

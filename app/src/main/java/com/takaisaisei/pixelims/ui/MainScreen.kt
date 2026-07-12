@@ -40,12 +40,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.takaisaisei.pixelims.R
+import com.takaisaisei.pixelims.domain.CfgValue
 import com.takaisaisei.pixelims.domain.Feature
+import com.takaisaisei.pixelims.domain.FeatureCategory
 import com.takaisaisei.pixelims.domain.SlotConfig
 import com.takaisaisei.pixelims.domain.SlotStatus
+import com.takaisaisei.pixelims.telephony.WfcLabels
 
 // Presentation strings for a Feature - the UI's only feature-specific knowledge.
-private data class ToggleText(val titleRes: Int, val descRes: Int, val shortRes: Int)
+// [shortRes] is only used by the status card, so cosmetic features (not shown there) may omit it.
+// [choiceLabelRes] labels the row of a feature's user-selectable choice.
+private data class ToggleText(
+    val titleRes: Int,
+    val descRes: Int,
+    val shortRes: Int? = null,
+    val choiceLabelRes: Int? = null,
+)
 
 private val TOGGLE_TEXT: Map<Feature, ToggleText> = mapOf(
     Feature.VOLTE to ToggleText(
@@ -73,9 +83,29 @@ private val TOGGLE_TEXT: Map<Feature, ToggleText> = mapOf(
         R.string.toggle_ss_ut_desc,
         R.string.feat_ss_ut_short
     ),
+    Feature.COSMETIC_DATA_RAT_ICON to ToggleText(
+        R.string.toggle_cosmetic_data_rat_icon_title,
+        R.string.toggle_cosmetic_data_rat_icon_desc,
+    ),
+    Feature.COSMETIC_4G_FOR_LTE to ToggleText(
+        R.string.toggle_cosmetic_4g_for_lte_title,
+        R.string.toggle_cosmetic_4g_for_lte_desc,
+    ),
+    Feature.COSMETIC_4GLTE_FOR_LTE to ToggleText(
+        R.string.toggle_cosmetic_4glte_for_lte_title,
+        R.string.toggle_cosmetic_4glte_for_lte_desc,
+    ),
+    Feature.COSMETIC_VOWIFI_ICON to ToggleText(
+        R.string.toggle_cosmetic_vowifi_icon_title,
+        R.string.toggle_cosmetic_vowifi_icon_desc,
+        choiceLabelRes = R.string.cosmetic_vowifi_label_format,
+    ),
 )
 
-private val TOGGLES: List<Feature> = Feature.displayed
+private val IMS_TOGGLES: List<Feature> =
+    Feature.displayed.filter { it.category == FeatureCategory.IMS }
+private val COSMETIC_TOGGLES: List<Feature> =
+    Feature.displayed.filter { it.category == FeatureCategory.COSMETIC }
 
 @SuppressLint("LocalContextGetResourceValueCall")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,6 +153,7 @@ fun MainScreen(
                     SettingsCard(
                         slot = state.selectedSlot,
                         config = state.config(state.selectedSlot),
+                        carrierName = state.carrierName(state.selectedSlot),
                         applyOnBoot = state.applyOnBoot(state.selectedSlot),
                         isApplying = state.isApplying,
                         onToggle = { flag, value ->
@@ -132,6 +163,9 @@ fun MainScreen(
                                 value
                             )
                         },
+                        onChoice = { key, value ->
+                            viewModel.setValue(state.selectedSlot, key, CfgValue.IntVal(value))
+                        },
                         onApplyOnBootChange = { viewModel.setApplyOnBoot(state.selectedSlot, it) },
                         onApply = viewModel::apply,
                         onRestore = viewModel::restore,
@@ -140,6 +174,13 @@ fun MainScreen(
             }
         }
     }
+}
+
+@Composable
+private fun wfcLabelOptions(carrierName: String?): List<String> {
+    val name = carrierName?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.carrier_placeholder)
+    return WfcLabels.templates().map { runCatching { it.format(name) }.getOrDefault(it) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -188,9 +229,10 @@ private fun StatusCard(status: SlotStatus) {
                 loaded = status.loaded,
                 ok = status.imsRegistered,
             )
-            TOGGLES.forEach { feature ->
+            IMS_TOGGLES.forEach { feature ->
+                val shortRes = TOGGLE_TEXT.getValue(feature).shortRes ?: return@forEach
                 StatusRow(
-                    label = stringResource(TOGGLE_TEXT.getValue(feature).shortRes),
+                    label = stringResource(shortRes),
                     loaded = status.loaded,
                     ok = status.effective[feature] == true,
                 )
@@ -238,9 +280,11 @@ private fun StatusRow(label: String, loaded: Boolean, ok: Boolean) {
 private fun SettingsCard(
     slot: Int,
     config: SlotConfig,
+    carrierName: String?,
     applyOnBoot: Boolean,
     isApplying: Boolean,
     onToggle: (Feature, Boolean) -> Unit,
+    onChoice: (String, Int) -> Unit,
     onApplyOnBootChange: (Boolean) -> Unit,
     onApply: () -> Unit,
     onRestore: () -> Unit,
@@ -254,7 +298,7 @@ private fun SettingsCard(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-            TOGGLES.forEach { feature ->
+            IMS_TOGGLES.forEach { feature ->
                 val text = TOGGLE_TEXT.getValue(feature)
                 ConfigToggle(
                     title = stringResource(text.titleRes),
@@ -263,6 +307,36 @@ private fun SettingsCard(
                     onCheckedChange = { onToggle(feature, it) },
                     enabled = !isApplying,
                 )
+            }
+
+            if (COSMETIC_TOGGLES.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                Text(
+                    text = stringResource(R.string.cosmetic_section_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                COSMETIC_TOGGLES.forEach { feature ->
+                    val text = TOGGLE_TEXT.getValue(feature)
+                    ConfigToggle(
+                        title = stringResource(text.titleRes),
+                        description = stringResource(text.descRes),
+                        checked = config[feature],
+                        onCheckedChange = { onToggle(feature, it) },
+                        enabled = !isApplying,
+                    )
+                    val choice = feature.intChoice
+                    if (choice != null && text.choiceLabelRes != null && config[feature]) {
+                        ChoiceRow(
+                            title = stringResource(text.choiceLabelRes),
+                            options = wfcLabelOptions(carrierName),
+                            selectedIndex = config.intValue(choice.key, choice.default),
+                            onSelect = { onChoice(choice.key, it) },
+                            enabled = !isApplying,
+                            modifier = Modifier.padding(start = 16.dp),
+                        )
+                    }
+                }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))

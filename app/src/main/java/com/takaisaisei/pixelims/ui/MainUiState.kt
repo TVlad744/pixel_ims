@@ -10,6 +10,8 @@ data class MainUiState(
     /** Per-slot config/status, filled in lazily as slots are selected or discovered by the poll. */
     val configs: Map<Int, SlotConfig> = emptyMap(),
     val statuses: Map<Int, SlotStatus> = emptyMap(),
+    /** Per-slot SIM operator name. */
+    val carrierNames: Map<Int, String> = emptyMap(),
     /** Slots that actually hold a SIM, learned from the privileged poll. */
     val knownSlots: Set<Int> = emptySet(),
     /** Slots flagged to re-apply automatically after a reboot. */
@@ -28,6 +30,7 @@ data class MainUiState(
 
     fun config(slot: Int): SlotConfig = configs[slot] ?: SlotConfig()
     fun status(slot: Int): SlotStatus = statuses[slot] ?: SlotStatus()
+    fun carrierName(slot: Int): String? = carrierNames[slot]
     fun applyOnBoot(slot: Int): Boolean = slot in bootSlots
 }
 

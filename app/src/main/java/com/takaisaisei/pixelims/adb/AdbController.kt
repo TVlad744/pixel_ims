@@ -93,30 +93,25 @@ class AdbController(context: Context) {
         runCatching { Kadb.pair(HOST, port, code, pairingKeyDir) }
     }
 
-    /**
-     * Self-grants [Manifest.permission.WRITE_SECURE_SETTINGS] over the working ADB bridge, if not
-     * already held.
-     */
-    suspend fun grantWriteSecureSettingsIfNeeded(port: Int) {
-        if (hasWriteSecureSettings()) return
+    suspend fun grantPermissionsIfNeeded(port: Int) {
+        val missing = GRANTABLE_PERMISSIONS.filterNot(::hasPermission)
+        if (missing.isEmpty()) return
         withContext(Dispatchers.IO) {
             runCatching {
                 Kadb.create(HOST, port, AUTH_TIMEOUT_MS, AUTH_TIMEOUT_MS).use { kadb ->
-                    val response =
-                        kadb.shell("pm grant $packageName ${Manifest.permission.WRITE_SECURE_SETTINGS}")
-                    if (response.exitCode != 0) {
-                        Log.w(
-                            TAG,
-                            "pm grant WRITE_SECURE_SETTINGS failed: ${response.output.trim()}"
-                        )
+                    missing.forEach { permission ->
+                        val response = kadb.shell("pm grant $packageName $permission")
+                        if (response.exitCode != 0) {
+                            Log.w(TAG, "pm grant $permission failed: ${response.output.trim()}")
+                        }
                     }
                 }
-            }.onFailure { Log.w(TAG, "Failed to self-grant WRITE_SECURE_SETTINGS", it) }
+            }.onFailure { Log.w(TAG, "Failed to self-grant permissions", it) }
         }
     }
 
-    private fun hasWriteSecureSettings(): Boolean =
-        ContextCompat.checkSelfPermission(appContext, Manifest.permission.WRITE_SECURE_SETTINGS) ==
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(appContext, permission) ==
                 PackageManager.PERMISSION_GRANTED
 
     /**
@@ -172,6 +167,11 @@ class AdbController(context: Context) {
     companion object {
         private const val TAG = "AdbController"
         private const val HOST = "127.0.0.1"
+
+        private val GRANTABLE_PERMISSIONS = listOf(
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.READ_PHONE_STATE,
+        )
 
         private const val AUTH_TIMEOUT_MS = 3_000
         private const val POLL_TIMEOUT_MS = 5_000

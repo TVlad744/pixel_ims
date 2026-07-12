@@ -1,6 +1,7 @@
 package com.takaisaisei.pixelims.ui
 
 import android.app.Application
+import android.telephony.SubscriptionManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.takaisaisei.pixelims.ApplyMode
@@ -9,6 +10,7 @@ import com.takaisaisei.pixelims.adb.AdbController
 import com.takaisaisei.pixelims.adb.AdbDiscovery
 import com.takaisaisei.pixelims.adb.AdbEndpoint
 import com.takaisaisei.pixelims.data.SettingsRepository
+import com.takaisaisei.pixelims.domain.CfgValue
 import com.takaisaisei.pixelims.domain.Feature
 import com.takaisaisei.pixelims.domain.SlotQuery
 import com.takaisaisei.pixelims.domain.SlotStatus
@@ -30,6 +32,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val discovery = AdbDiscovery(application)
     private val connectivity = ConnectivityMonitor(application)
     private val notifications = NotificationController(application)
+    private val subscriptions = application.getSystemService(SubscriptionManager::class.java)
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -74,10 +77,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(bootSlots = settings.bootSlots()) }
     }
 
+    fun setValue(slot: Int, key: String, value: CfgValue) {
+        settings.setValue(slot, key, value)
+        _uiState.update { state ->
+            state.copy(configs = state.configs + (slot to state.config(slot).withValue(key, value)))
+        }
+    }
+
     fun setFlag(slot: Int, feature: Feature, value: Boolean) {
         settings.setFlag(slot, feature, value)
+        val siblingsToClear = if (value) feature.exclusiveSiblings else emptyList()
+        siblingsToClear.forEach { settings.setFlag(slot, it, false) }
         _uiState.update { state ->
-            state.copy(configs = state.configs + (slot to state.config(slot).with(feature, value)))
+            var config = state.config(slot).with(feature, value)
+            siblingsToClear.forEach { config = config.with(it, false) }
+            state.copy(configs = state.configs + (slot to config))
         }
     }
 
@@ -187,7 +201,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         authJob = viewModelScope.launch {
             val authorized = adb.isAuthorized(port)
             _uiState.update { it.copy(isAuthorized = authorized) }
-            if (authorized) adb.grantWriteSecureSettingsIfNeeded(port)
+            if (authorized) adb.grantPermissionsIfNeeded(port)
         }
         pollJob = viewModelScope.launch {
             adb.pollImsStatus(
@@ -207,12 +221,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val knownSlots = state.knownSlots + query.slot
         val selectedSlot =
             if (state.selectedSlot in knownSlots) state.selectedSlot else knownSlots.min()
+        val carrierNames = carrierName(query.slot)
+            ?.let { state.carrierNames + (query.slot to it) }
+            ?: state.carrierNames
         withConfig(state, query.slot).copy(
             statuses = state.statuses + (query.slot to status),
             knownSlots = knownSlots,
             selectedSlot = selectedSlot,
+            carrierNames = carrierNames,
         )
     }
+
+    private fun carrierName(slot: Int): String? = runCatching {
+        val info = subscriptions?.getActiveSubscriptionInfoForSimSlotIndex(slot) ?: return null
+        (info.carrierName ?: info.displayName)?.toString()?.takeIf { it.isNotBlank() }
+    }.getOrNull()
 
     private fun emit(message: UiMessage) {
         _messages.trySend(message)
