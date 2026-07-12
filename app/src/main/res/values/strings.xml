@@ -55,7 +55,7 @@
     <string name="msg_enable_wireless_first">Enable wireless debugging first</string>
     <string name="msg_apply_failed">Apply failed: %1$s</string>
     <string name="msg_restore_failed">Restore failed: %1$s</string>
-    <string name="msg_pairing_no_port">Pairing port not detected. Make sure the system pairing dialog is open.</string>
+    <string name="msg_pairing_no_port">ADB port not detected. Make sure the system pairing dialog is open.</string>
     <string name="msg_pairing_in_progress">Pairing the device in the background…</string>
     <string name="msg_pairing_success">Paired successfully!</string>
     <string name="msg_pairing_failed">Pairing failed: %1$s</string>
@@ -71,7 +71,7 @@
     <string name="notif_pairing_action">Enter pairing code</string>
     <string name="notif_pairing_status">Pairing on port %1$d…</string>
     <string name="notif_pairing_status_failed">Pairing failed: %1$s</string>
-    <string name="notif_pairing_status_no_port">Pairing failed: system pairing port not detected</string>
+    <string name="notif_pairing_status_no_port">Pairing failed: ADB port not detected</string>
 
     <!-- Apply status notification -->
     <string name="notif_channel_applying_name">Applying IMS settings</string>
