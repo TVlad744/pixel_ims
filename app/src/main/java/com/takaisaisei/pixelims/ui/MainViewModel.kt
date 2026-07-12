@@ -2,6 +2,7 @@ package com.takaisaisei.pixelims.ui
 
 import android.app.Application
 import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.takaisaisei.pixelims.ApplyMode
@@ -33,6 +34,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val connectivity = ConnectivityMonitor(application)
     private val notifications = NotificationController(application)
     private val subscriptions = application.getSystemService(SubscriptionManager::class.java)
+    private val telephony = application.getSystemService(TelephonyManager::class.java)
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -234,7 +236,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun carrierName(slot: Int): String? = runCatching {
         val info = subscriptions?.getActiveSubscriptionInfoForSimSlotIndex(slot) ?: return null
-        (info.carrierName ?: info.displayName)?.toString()?.takeIf { it.isNotBlank() }
+        val tm = telephony?.createForSubscriptionId(info.subscriptionId) ?: return null
+        tm.simOperatorName?.takeIf { it.isNotBlank() }
     }.getOrNull()
 
     private fun emit(message: UiMessage) {
