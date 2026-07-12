@@ -42,11 +42,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var authJob: Job? = null
     private var pollJob: Job? = null
+    private var discoveryJob: Job? = null
+    private var isForeground = true
 
     init {
         _uiState.update { withConfig(it, it.selectedSlot).copy(bootSlots = settings.bootSlots()) }
-        observeDiscovery()
+        startDiscovery()
         observeWifi()
+    }
+
+    /** Driven by the Activity lifecycle: stop all ADB work in the background, resume in foreground. */
+    fun setForeground(foreground: Boolean) {
+        if (foreground == isForeground) return
+        isForeground = foreground
+        if (foreground) {
+            startDiscovery()
+            // Discovery won't re-emit an unchanged port, so resume polling for the known one.
+            if (_uiState.value.port != null) restartAdbForPort()
+        } else {
+            // Backgrounded: stop discovery and release the ADB port.
+            if (_uiState.value.isAuthorized) stopDiscovery()
+            authJob?.cancel()
+            pollJob?.cancel()
+        }
     }
 
     fun selectSlot(slot: Int) = _uiState.update { withConfig(it, slot).copy(selectedSlot = slot) }
@@ -134,13 +152,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (state.configs.containsKey(slot)) state
         else state.copy(configs = state.configs + (slot to settings.readConfig(slot)))
 
-    private fun observeDiscovery() = viewModelScope.launch {
-        discovery.discover().collect { endpoint ->
-            when (endpoint) {
-                is AdbEndpoint.Connect -> setPort(endpoint.port)
-                is AdbEndpoint.Pairing -> _uiState.update { it.copy(pairingPort = endpoint.port) }
+    private fun startDiscovery() {
+        if (discoveryJob?.isActive == true) return
+        discoveryJob = viewModelScope.launch {
+            discovery.discover().collect { endpoint ->
+                when (endpoint) {
+                    is AdbEndpoint.Connect -> setPort(endpoint.port)
+                    is AdbEndpoint.Pairing ->
+                        _uiState.update { it.copy(pairingPort = endpoint.port) }
+                }
             }
         }
+    }
+
+    private fun stopDiscovery() {
+        discoveryJob?.cancel()
+        discoveryJob = null
     }
 
     private fun observeWifi() = viewModelScope.launch {

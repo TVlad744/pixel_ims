@@ -68,6 +68,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.setForeground(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.setForeground(false)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         runCatching { unregisterReceiver(pairingReceiver) }
