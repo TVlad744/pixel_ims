@@ -3,6 +3,7 @@ package com.takaisaisei.pixelims
 import com.takaisaisei.pixelims.domain.BrokerContract
 import com.takaisaisei.pixelims.domain.Feature
 import com.takaisaisei.pixelims.telephony.TelephonyReflection
+import android.util.Log
 
 /**
  * Minimal `app_process` entry point launched over ADB to read IMS state with shell privileges.
@@ -13,6 +14,18 @@ import com.takaisaisei.pixelims.telephony.TelephonyReflection
 object ImsQueryTool {
     @JvmStatic
     fun main(args: Array<String>) {
+        listOf(
+			"android.telephony.CarrierConfigManager",
+			"com.android.internal.telephony.ICarrierConfigLoader",
+		).forEach { cn ->
+			runCatching {
+				Class.forName(cn).methods
+					.filter { it.name == "overrideConfig" }
+					.forEach { m ->
+						Log.i("PixelImsDbg", "$cn(${m.parameterTypes.joinToString { it.simpleName }})")
+					}
+			}.onFailure { Log.i("PixelImsDbg", "$cn unavailable: $it") }
+		}
         for (slot in 0 until TelephonyReflection.slotCount()) {
             // Only emit lines for slots that actually hold a SIM, so the UI can show one tab per
             // present SIM and never surface another slot's data.
