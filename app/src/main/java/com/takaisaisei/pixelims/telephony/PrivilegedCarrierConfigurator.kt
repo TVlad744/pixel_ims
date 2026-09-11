@@ -32,13 +32,13 @@ class PrivilegedCarrierConfigurator(context: Context) {
     fun clearOverrides(subId: Int): Boolean = override(subId, null)
 
     fun resetIms(slot: Int) {
-        runCatching { findMethod(telephony, "resetIms")?.invoke(telephony, slot) }
+        runCatching { findMethod(telephony, "resetIms", preferredArity = 1)?.invoke(telephony, slot) }
             .onFailure { Log.e(TAG, "Failed to reset IMS for slot $slot", it) }
     }
 
     private fun override(subId: Int, overrides: PersistableBundle?): Boolean {
         val manager = carrierConfig ?: return false
-        val method = findMethod(manager, "overrideConfig") ?: return false
+        val method = findMethod(manager, "overrideConfig", preferredArity = 3) ?: return false
         return runCatching {
             // Older signature: overrideConfig(subId, bundle); newer: overrideConfig(subId, bundle, persistent)
             if (method.parameterTypes.size == 3) {
@@ -51,20 +51,32 @@ class PrivilegedCarrierConfigurator(context: Context) {
             .getOrDefault(false)
     }
 
-    // Finds a (possibly hidden) method by name walking the class hierarchy and interfaces.
-    private fun findMethod(target: Any?, name: String): Method? {
+    /**
+    * Finds a (possibly hidden) method by name, walking the class hierarchy and its interfaces.
+    *
+    * [preferredArity] disambiguates overloads: a method with exactly that many parameters wins.
+    * Without it — or if nothing matches — the candidate with the most parameters is used, so
+    * extended hidden signatures win over their legacy wrappers.
+    */
+    private fun findMethod(target: Any?, name: String, preferredArity: Int? = null): Method? {
         if (target == null) return null
+
+        val candidates = LinkedHashSet<Method>()
         var clazz: Class<*>? = target.javaClass
         while (clazz != null) {
-            clazz.declaredMethods.firstOrNull { it.name == name }
-                ?.let { return it.apply { isAccessible = true } }
+            clazz.declaredMethods.filterTo(candidates) { it.name == name }
+            for (iface in clazz.interfaces) {
+                iface.declaredMethods.filterTo(candidates) { it.name == name }
+            }
             clazz = clazz.superclass
         }
-        for (iface in target.javaClass.interfaces) {
-            iface.declaredMethods.firstOrNull { it.name == name }
-                ?.let { return it.apply { isAccessible = true } }
-        }
-        return null
+        if (candidates.isEmpty()) return null
+
+        val chosen = preferredArity?.let { arity ->
+            candidates.firstOrNull { it.parameterTypes.size == arity }
+        } ?: candidates.maxByOrNull { it.parameterTypes.size }
+
+        return chosen?.apply { isAccessible = true }
     }
 
     private companion object {
